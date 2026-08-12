@@ -1216,7 +1216,7 @@ class _TaskDetailViewState extends State<TaskDetailView> {
         return '${item.userName} changed task status from ${getTaskStatusLabel(item.oldValue ?? '')} to ${getTaskStatusLabel(item.newValue ?? '')}';
 
       case 'submitted_for_review':
-        return '${item.userName} submitted this task for Manager review';
+        return '${item.userName} submitted this task for Management review';
 
       case 'task_completed':
         return '${item.userName} approved and completed this task';

@@ -49,11 +49,7 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
-  void _quickLogin(String email, String password) {
-    _identifierController.text = email;
-    _passwordController.text = password;
-    _handleLogin();
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -197,73 +193,7 @@ class _LoginViewState extends State<LoginView> {
                       );
                     },
                   ),
-                  const SizedBox(height: 24),
 
-                  // Demo Accounts Divider
-                  Row(
-                    children: [
-                      Expanded(
-                          child: Divider(
-                              color: isDark
-                                  ? AspireColors.darkBorder
-                                  : AspireColors.lightBorder)),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Text(
-                          'QUICK MOCK LOGINS',
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      Expanded(
-                          child: Divider(
-                              color: isDark
-                                  ? AspireColors.darkBorder
-                                  : AspireColors.lightBorder)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Mock logins buttons
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.center,
-                    children: [
-                      ActionChip(
-                        label: const Text('Super Admin'),
-                        backgroundColor:
-                            theme.colorScheme.primary.withOpacity(0.1),
-                        side: BorderSide.none,
-                        onPressed: () =>
-                            _quickLogin('admin@aspire.com', 'password123'),
-                      ),
-                      ActionChip(
-                        label: const Text('Manager'),
-                        backgroundColor:
-                            theme.colorScheme.secondary.withOpacity(0.1),
-                        side: BorderSide.none,
-                        onPressed: () =>
-                            _quickLogin('manager@aspire.com', 'password123'),
-                      ),
-                      ActionChip(
-                        label: const Text('Team Leader'),
-                        backgroundColor:
-                            theme.colorScheme.secondary.withOpacity(0.1),
-                        side: BorderSide.none,
-                        onPressed: () =>
-                            _quickLogin('tl@aspire.com', 'password123'),
-                      ),
-                      ActionChip(
-                        label: const Text('Staff (Sales)'),
-                        backgroundColor:
-                            theme.colorScheme.secondary.withOpacity(0.1),
-                        side: BorderSide.none,
-                        onPressed: () =>
-                            _quickLogin('staff@aspire.com', 'password123'),
-                      ),
-                    ],
-                  )
                 ],
               ),
             ),

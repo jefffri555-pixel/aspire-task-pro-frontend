@@ -1,13 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'config/colors.dart';
 import 'services/storage_service.dart';
 import 'services/api_service.dart';
 import 'views/auth/splash_view.dart';
+import 'firebase_options.dart';
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+
+  debugPrint(
+    'Background notification received: ${message.messageId}',
+  );
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+  options: DefaultFirebaseOptions.currentPlatform,
+);
+
+  FirebaseMessaging.onBackgroundMessage(
+    firebaseMessagingBackgroundHandler,
+  );
+
+  await FirebaseMessaging.instance.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
   await StorageService.init();
 
   runApp(
@@ -19,7 +45,6 @@ void main() async {
     ),
   );
 }
-
 class AspireTaskProApp extends StatefulWidget {
   const AspireTaskProApp({super.key});
 

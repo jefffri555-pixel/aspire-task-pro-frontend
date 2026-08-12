@@ -269,7 +269,30 @@ class _TaskFormViewState extends State<TaskFormView> {
           final departmentsList =
               (snapshot.data?[2] as List<Department>?) ?? [];
 
-          final staffList = allUsers.where((u) => u.role != 'manager').toList();
+          final currentUserRole = api.currentUser?.role ?? '';
+          final List<User> staffList;
+          if (currentUserRole == 'manager') {
+            staffList = allUsers
+                .where((u) =>
+                    u.role == 'managing_director' ||
+                    u.role == 'team_leader' ||
+                    u.role == 'staff')
+                .toList();
+          } else if (currentUserRole == 'managing_director') {
+            staffList = allUsers
+                .where((u) => u.role == 'team_leader' || u.role == 'staff')
+                .toList();
+          } else if (currentUserRole == 'team_leader') {
+            staffList = allUsers.where((u) => u.role == 'staff').toList();
+          } else {
+            staffList = allUsers
+                .where((u) =>
+                    u.role == 'manager' ||
+                    u.role == 'managing_director' ||
+                    u.role == 'team_leader' ||
+                    u.role == 'staff')
+                .toList();
+          }
 
           return Form(
             key: _formKey,

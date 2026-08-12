@@ -294,6 +294,7 @@ String getTaskStatusLabel(String status) {
     case 'pending':
       return 'Pending';
     case 'in_progress':
+    case 'waiting_for_review':
       return 'In Progress';
     case 'in_review':
       return 'In Review';
@@ -307,6 +308,7 @@ String getTaskStatusLabel(String status) {
 bool isManagerRole(String role) {
   final value = role.trim().toLowerCase();
   return value == 'manager' ||
+      value == 'managing_director' ||
       value == 'admin' ||
       value == 'super_admin' ||
       value == 'superadmin';

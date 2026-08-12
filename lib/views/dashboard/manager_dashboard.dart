@@ -62,14 +62,10 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
               final pendingCount = summary['pendingTasks'] ?? 0;
               final completedCount = summary['completedTasks'] ?? 0;
               final inProgressCount = summary['inProgressTasks'] ?? 0;
-              final waitingForReviewCount =
-                  summary['waitingForReviewTasks'] ?? 0;
               final currentUser = api.currentUser;
 
-              final totalTasks = pendingCount +
-                  inProgressCount +
-                  waitingForReviewCount +
-                  completedCount;
+              final totalTasks =
+                  pendingCount + inProgressCount + completedCount;
               final completionRate = totalTasks > 0
                   ? (completedCount / totalTasks * 100).toInt()
                   : 0;

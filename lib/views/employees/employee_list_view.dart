@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../config/colors.dart';
 import '../../services/api_service.dart';
 import '../../models/user.dart';
+import '../../models/department.dart';
 import 'employee_task_history_page.dart';
 
 class EmployeeListView extends StatefulWidget {
@@ -40,12 +41,6 @@ class _EmployeeListViewState extends State<EmployeeListView> {
     _filterDepartmentName = widget.initialDepartmentName;
   }
 
-  final List<Map<String, String>> _depts = [
-    {'id': 'dept_sales', 'name': 'Sales & Marketing'},
-    {'id': 'dept_ops', 'name': 'Operations & Bookings'},
-    {'id': 'dept_admin', 'name': 'Finance & Administration'},
-  ];
-
   @override
   void dispose() {
     _nameController.dispose();
@@ -60,86 +55,166 @@ class _EmployeeListViewState extends State<EmployeeListView> {
     _emailController.clear();
     _phoneController.clear();
     _designationController.clear();
+    _role = 'staff';
+    _selectedDeptId = null;
+
+    List<Department> dialogDepartments = [];
+    bool isLoadingDepartments = true;
+    String? departmentLoadError;
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Add New Employee'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(labelText: 'Name')),
-                TextField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(labelText: 'Email')),
-                TextField(
-                    controller: _phoneController,
-                    decoration: const InputDecoration(labelText: 'Phone')),
-                TextField(
-                    controller: _designationController,
-                    decoration:
-                        const InputDecoration(labelText: 'Designation')),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: _role,
-                  decoration: const InputDecoration(labelText: 'Role'),
-                  items: const [
-                    DropdownMenuItem(
-                        value: 'team_leader', child: Text('Team Leader')),
-                    DropdownMenuItem(value: 'staff', child: Text('Staff')),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() {
-                        _role = val;
-                      });
-                    }
-                  },
-                ),
-                DropdownButtonFormField<String>(
-                  value: _selectedDeptId,
-                  decoration: const InputDecoration(labelText: 'Department'),
-                  items: _depts.map((d) {
-                    return DropdownMenuItem(
-                        value: d['id'], child: Text(d['name']!));
-                  }).toList(),
-                  onChanged: (val) {
-                    setState(() {
-                      _selectedDeptId = val;
-                    });
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                final api = Provider.of<ApiService>(context, listen: false);
-                await api.createUser({
-                  'name': _nameController.text,
-                  'email': _emailController.text,
-                  'phone': _phoneController.text,
-                  'designation': _designationController.text,
-                  'role': _role,
-                  'department_id': _selectedDeptId,
+        return StatefulBuilder(builder: (context, setDialogState) {
+          // Fetch departments on init
+          if (isLoadingDepartments &&
+              dialogDepartments.isEmpty &&
+              departmentLoadError == null) {
+            final api = Provider.of<ApiService>(context, listen: false);
+            api.fetchDepartments().then((depts) {
+              if (context.mounted) {
+                setDialogState(() {
+                  dialogDepartments = depts.where((d) => d.isActive).toList();
+                  dialogDepartments.sort((a, b) =>
+                      a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+                  isLoadingDepartments = false;
                 });
-                if (mounted) {
-                  Navigator.pop(context);
-                  setState(() {});
-                }
-              },
-              child: const Text('Register'),
-            )
-          ],
-        );
+              }
+            }).catchError((err) {
+              if (context.mounted) {
+                setDialogState(() {
+                  isLoadingDepartments = false;
+                  departmentLoadError = err.toString();
+                });
+              }
+            });
+          }
+          return AlertDialog(
+            title: const Text('Add New Employee'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                      controller: _nameController,
+                      decoration: const InputDecoration(labelText: 'Name')),
+                  TextField(
+                      controller: _emailController,
+                      decoration: const InputDecoration(labelText: 'Email')),
+                  TextField(
+                      controller: _phoneController,
+                      decoration: const InputDecoration(labelText: 'Phone')),
+                  TextField(
+                      controller: _designationController,
+                      decoration:
+                          const InputDecoration(labelText: 'Designation')),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: _role,
+                    decoration: const InputDecoration(labelText: 'Role'),
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'team_leader', child: Text('Team Leader')),
+                      DropdownMenuItem(value: 'staff', child: Text('Staff')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        setDialogState(() {
+                          _role = val;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  if (_role != 'super_admin' && _role != 'admin')
+                    isLoadingDepartments
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text('Loading departments...',
+                                style: TextStyle(color: Colors.grey)),
+                          )
+                        : departmentLoadError != null
+                            ? Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8.0),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.error_outline,
+                                        color: Colors.red, size: 20),
+                                    const SizedBox(width: 8),
+                                    const Expanded(
+                                      child: Text('Unable to load departments',
+                                          style: TextStyle(color: Colors.red)),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        setDialogState(() {
+                                          isLoadingDepartments = true;
+                                          departmentLoadError = null;
+                                        });
+                                      },
+                                      child: const Text('Retry'),
+                                    )
+                                  ],
+                                ),
+                              )
+                            : dialogDepartments.isEmpty
+                                ? const Padding(
+                                    padding:
+                                        EdgeInsets.symmetric(vertical: 8.0),
+                                    child: Text(
+                                        'No active departments available',
+                                        style: TextStyle(
+                                            color: Colors.grey,
+                                            fontStyle: FontStyle.italic)),
+                                  )
+                                : DropdownButtonFormField<String>(
+                                    value: _selectedDeptId,
+                                    decoration: const InputDecoration(
+                                        labelText: 'Department'),
+                                    items: dialogDepartments.map((d) {
+                                      return DropdownMenuItem(
+                                          value: d.id, child: Text(d.name));
+                                    }).toList(),
+                                    onChanged: (val) {
+                                      setDialogState(() {
+                                        _selectedDeptId = val;
+                                      });
+                                    },
+                                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel')),
+              ElevatedButton(
+                onPressed: (_role != 'super_admin' &&
+                        _role != 'admin' &&
+                        _selectedDeptId == null)
+                    ? null
+                    : () async {
+                        final api =
+                            Provider.of<ApiService>(context, listen: false);
+                        await api.createUser({
+                          'name': _nameController.text,
+                          'email': _emailController.text,
+                          'phone': _phoneController.text,
+                          'designation': _designationController.text,
+                          'role': _role,
+                          'department_id': _selectedDeptId,
+                        });
+                        if (mounted) {
+                          Navigator.pop(context);
+                          setState(() {});
+                        }
+                      },
+                child: const Text('Register'),
+              )
+            ],
+          );
+        });
       },
     );
   }
@@ -157,7 +232,8 @@ class _EmployeeListViewState extends State<EmployeeListView> {
             ? 'Employees — $_filterDepartmentName'
             : 'Employees Registry'),
         actions: [
-          if (currentUser?.role == 'manager')
+          if (currentUser?.role == 'manager' ||
+              currentUser?.role == 'managing_director')
             Padding(
               padding: const EdgeInsets.only(right: 16.0),
               child: ElevatedButton.icon(
@@ -289,7 +365,9 @@ class _EmployeeListViewState extends State<EmployeeListView> {
                               ),
 
                               // Delete button (Manager only)
-                              if (currentUser?.role == 'manager' &&
+                              if ((currentUser?.role == 'manager' ||
+                                      currentUser?.role ==
+                                          'managing_director') &&
                                   employee.id != currentUser?.id)
                                 IconButton(
                                   icon: const Icon(Icons.delete_outline,

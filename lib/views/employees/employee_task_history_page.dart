@@ -74,6 +74,7 @@ class _EmployeeTaskHistoryPageState extends State<EmployeeTaskHistoryPage> {
   }
 
   String _formatStatus(String status) {
+    if (status == 'waiting_for_review') return 'IN PROGRESS';
     return status.replaceAll('_', ' ').toUpperCase();
   }
 
@@ -285,7 +286,6 @@ class _EmployeeTaskHistoryPageState extends State<EmployeeTaskHistoryPage> {
       final statusMap = {
         'Pending': 'pending',
         'In Progress': 'in_progress',
-        'Waiting for Review': 'waiting_for_review',
         'Completed': 'completed',
       };
       final targetStatus = statusMap[_selectedFilter];
@@ -429,24 +429,44 @@ class _EmployeeTaskHistoryPageState extends State<EmployeeTaskHistoryPage> {
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
-                  children: [
-                    'All',
-                    'Pending',
-                    'In Progress',
-                    'Waiting for Review',
-                    'Completed'
-                  ].map((filter) {
+                  children: ['All', 'Pending', 'In Progress', 'Completed']
+                      .map((filter) {
                     final isSelected = _selectedFilter == filter;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: ChoiceChip(
-                        label: Text(filter),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() => _selectedFilter = filter);
-                          }
-                        },
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _selectedFilter = filter);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        margin: const EdgeInsets.only(right: 8.0),
+                        decoration: BoxDecoration(
+                          color:
+                              isSelected ? AspireColors.primary : Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: isSelected
+                              ? null
+                              : Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isSelected) ...[
+                              const Icon(Icons.check,
+                                  color: Colors.white, size: 16),
+                              const SizedBox(width: 4),
+                            ],
+                            Text(
+                              filter,
+                              style: TextStyle(
+                                color: isSelected ? Colors.white : Colors.black,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }).toList(),

@@ -16,7 +16,7 @@ class TaskListView extends StatefulWidget {
 
 class _TaskListViewState extends State<TaskListView>
     with SingleTickerProviderStateMixin {
-  TabController? _tabController;
+  int _selectedIndex = 0;
   String _searchQuery = '';
   String _priorityFilter = 'All';
   late List<String> _tabs;
@@ -24,31 +24,19 @@ class _TaskListViewState extends State<TaskListView>
   @override
   void initState() {
     super.initState();
-    final api = Provider.of<ApiService>(context, listen: false);
-    final role = api.currentUser?.role ?? 'staff';
+    _tabs = ['All', 'Pending', 'In Progress', 'Completed'];
 
-    if (role == 'admin') {
-      _tabs = ['All', 'Pending', 'In Progress', 'Waiting Review', 'Completed'];
-    } else {
-      _tabs = ['All', 'Pending', 'In Progress', 'Completed'];
-    }
-
-    int initialIndex = 0;
     if (widget.initialStatusFilter != null) {
-      initialIndex = _tabs.indexOf(widget.initialStatusFilter!);
-      if (initialIndex < 0) initialIndex = 0;
+      _selectedIndex = _tabs.indexOf(widget.initialStatusFilter!);
+      if (_selectedIndex < 0) _selectedIndex = 0;
     }
-    _tabController = TabController(
-        length: _tabs.length, vsync: this, initialIndex: initialIndex);
   }
 
   @override
   void dispose() {
-    _tabController?.dispose();
     super.dispose();
   }
 
-  // Maps tab text to backend status enum values
   String? _getStatusFilter(int tabIndex) {
     if (tabIndex < 0 || tabIndex >= _tabs.length) return null;
     final tabName = _tabs[tabIndex];
@@ -57,13 +45,42 @@ class _TaskListViewState extends State<TaskListView>
         return 'pending';
       case 'In Progress':
         return 'in_progress';
-      case 'Waiting Review':
-        return 'waiting_for_review';
       case 'Completed':
         return 'completed';
       default:
         return null;
     }
+  }
+
+  Widget _buildFilterButton(String text, bool isSelected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        margin: const EdgeInsets.only(right: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AspireColors.primary : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: isSelected ? null : Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected) ...[
+              const Icon(Icons.check, color: Colors.white, size: 16),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              text,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.black,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -77,10 +94,28 @@ class _TaskListViewState extends State<TaskListView>
       appBar: AppBar(
         title: const Text('Tasks Center',
             style: TextStyle(fontWeight: FontWeight.bold)),
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabs: _tabs.map((t) => Tab(text: t)).toList(),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.only(left: 16, bottom: 8),
+            alignment: Alignment.centerLeft,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _tabs.length,
+              itemBuilder: (context, index) {
+                return _buildFilterButton(
+                  _tabs[index],
+                  _selectedIndex == index,
+                  () {
+                    setState(() {
+                      _selectedIndex = index;
+                    });
+                  },
+                );
+              },
+            ),
+          ),
         ),
         actions: [
           // Managers & TLs can create tasks
@@ -149,10 +184,9 @@ class _TaskListViewState extends State<TaskListView>
 
           // Task List Body
           Expanded(
-            child: AnimatedBuilder(
-              animation: _tabController!,
-              builder: (context, _) {
-                final statusFilter = _getStatusFilter(_tabController!.index);
+            child: Builder(
+              builder: (context) {
+                final statusFilter = _getStatusFilter(_selectedIndex);
 
                 return FutureBuilder<List<Task>>(
                   future: api.fetchTasks(status: statusFilter),
@@ -212,9 +246,67 @@ class _TaskListViewState extends State<TaskListView>
     );
   }
 
+  Future<void> _showDeleteConfirmation(BuildContext context, String taskId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text('Delete Task?'),
+          content: const Text(
+            'Are you sure you want to permanently delete this task? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return;
+
+    if (!mounted) return;
+    
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final apiService = Provider.of<ApiService>(context, listen: false);
+      await apiService.deleteTask(taskId);
+      if (!mounted) return;
+      Navigator.pop(context); // pop loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Task deleted successfully.')),
+      );
+      // Refresh task list
+      setState(() {
+        
+      });
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // pop loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete task: $e')),
+      );
+    }
+  }
+
   Widget _buildTaskCard(BuildContext context, Task task) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final apiService = Provider.of<ApiService>(context, listen: false);
+    final userRole = apiService.currentUser?.role ?? 'staff';
+    final canDelete = userRole == 'admin' || userRole == 'manager';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -273,13 +365,54 @@ class _TaskListViewState extends State<TaskListView>
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          task.status.replaceValues(),
+                          task.status == 'waiting_for_review'
+                              ? 'IN PROGRESS'
+                              : task.status.replaceValues(),
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: AspireColors.getStatusColor(task.status),
                           ),
                         ),
+                      ),
+                      
+                      // Delete / View Menu
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, size: 20),
+                        padding: EdgeInsets.zero,
+                        onSelected: (value) async {
+                          if (value == 'view') {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => TaskDetailView(taskId: task.id)),
+                            );
+                          } else if (value == 'delete') {
+                            _showDeleteConfirmation(context, task.id);
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'view',
+                            child: Row(
+                              children: [
+                                Icon(Icons.visibility, size: 18),
+                                SizedBox(width: 8),
+                                Text('View Details'),
+                              ],
+                            ),
+                          ),
+                          if (canDelete)
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete, color: Colors.red, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('Delete Task', style: TextStyle(color: Colors.red)),
+                                ],
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),
@@ -383,6 +516,7 @@ class _TaskListViewState extends State<TaskListView>
 // Inline extension mapping raw status formats into clean text
 extension CleanStatus on String {
   String replaceValues() {
+    if (this == 'waiting_for_review') return 'IN PROGRESS';
     return replaceAll('_', ' ').toUpperCase();
   }
 }

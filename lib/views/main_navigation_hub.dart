@@ -43,7 +43,7 @@ class _MainNavigationHubState extends State<MainNavigationHub> {
         const DepartmentManagementPage(),
         const ReportsView(),
       ];
-    } else if (role == 'manager') {
+    } else if (role == 'manager' || role == 'managing_director') {
       return [
         ManagerDashboard(
           onNavigate: (index) {
@@ -123,7 +123,7 @@ class _MainNavigationHubState extends State<MainNavigationHub> {
           label: 'Reports',
         ),
       ];
-    } else if (role == 'manager') {
+    } else if (role == 'manager' || role == 'managing_director') {
       return const [
         NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
@@ -219,109 +219,79 @@ class _MainNavigationHubState extends State<MainNavigationHub> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Responsive Screen Width Check
-    final isDesktop = MediaQuery.of(context).size.width >= 900;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
 
-    return Scaffold(
-      extendBody: true, // Allow body to scroll under the floating nav bar
-      appBar: AppBar(
-        title: const AspireLogo(
-          size: 32,
-          showText: true,
-          isDarkBackground: false,
-        ),
-        actions: [
-          // Fallback banner indicator
-          if (api.isUsingMockFallback)
-            Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade700,
-                borderRadius: BorderRadius.circular(12),
+        final myAppBar = AppBar(
+          title: const AspireLogo(
+            size: 32,
+            showText: true,
+            isDarkBackground: false,
+          ),
+          actions: [
+            // Fallback banner indicator
+            if (api.isUsingMockFallback)
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade700,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Offline Demo Mode',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold),
+                ),
               ),
-              child: const Text(
-                'Offline Demo Mode',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold),
-              ),
+
+            // Theme toggler
+            IconButton(
+              icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+              onPressed: () {
+                AspireTaskProApp.of(context).toggleTheme();
+              },
             ),
 
-          // Theme toggler
-          IconButton(
-            icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
-            onPressed: () {
-              AspireTaskProApp.of(context).toggleTheme();
-            },
-          ),
-
-          // Profile chip or signout
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: CircleAvatar(
-              backgroundColor:
-                  isDark ? AspireColors.darkBorder : AspireColors.lightBorder,
-              child: Text(
-                user.name.substring(0, 1).toUpperCase(),
-                style: TextStyle(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold),
+            // Profile chip or signout
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: CircleAvatar(
+                backgroundColor:
+                    isDark ? AspireColors.darkBorder : AspireColors.lightBorder,
+                child: Text(
+                  user.name.substring(0, 1).toUpperCase(),
+                  style: TextStyle(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold),
+                ),
               ),
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: () {
-              api.logout();
-            },
-          ),
-        ],
-      ),
+            IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: 'Logout',
+              onPressed: () {
+                api.logout();
+              },
+            ),
+          ],
+        );
 
-      // Responsive Layout Grid
-      body: isDesktop
-          ? Row(
-              children: [
-                // Desktop Sidebar Navigation
-                NavigationRail(
-                  selectedIndex: _currentIndex,
-                  onDestinationSelected: (idx) {
-                    setState(() {
-                      _currentIndex = idx;
-                    });
-                  },
-                  labelType: NavigationRailLabelType.all,
-                  selectedIconTheme: const IconThemeData(color: Colors.white),
-                  unselectedIconTheme: IconThemeData(
-                      color: isDark
-                          ? AspireColors.darkTextSecondary
-                          : AspireColors.lightTextSecondary),
-                  indicatorColor: AspireColors.primary,
-                  destinations: destinations.map((d) {
-                    return NavigationRailDestination(
-                      icon: d.icon,
-                      selectedIcon: d.selectedIcon,
-                      label: Text(d.label),
-                    );
-                  }).toList(),
-                ),
-                const VerticalDivider(thickness: 1, width: 1),
-
-                // Active Dashboard Window
-                Expanded(
-                  child: screens[_currentIndex],
-                ),
-              ],
-            )
-          : screens[_currentIndex], // Mobile Layout: Body without Rail
-
-      // Mobile Bottom Bar Navigation (Floating Premium Style)
-      bottomNavigationBar: isDesktop
-          ? null
-          : Padding(
+        if (isMobile) {
+          return Scaffold(
+            extendBody: true,
+            appBar: myAppBar,
+            body: SafeArea(
+              child: IndexedStack(
+                index: _currentIndex,
+                children: screens,
+              ),
+            ),
+            bottomNavigationBar: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
               child: Container(
                 decoration: BoxDecoration(
@@ -381,6 +351,50 @@ class _MainNavigationHubState extends State<MainNavigationHub> {
                 ),
               ),
             ),
+          );
+        }
+
+        return Scaffold(
+          extendBody: true,
+          appBar: myAppBar,
+          body: Row(
+            children: [
+              // Desktop Sidebar Navigation
+              NavigationRail(
+                selectedIndex: _currentIndex,
+                onDestinationSelected: (idx) {
+                  setState(() {
+                    _currentIndex = idx;
+                  });
+                },
+                labelType: NavigationRailLabelType.all,
+                selectedIconTheme: const IconThemeData(color: Colors.white),
+                unselectedIconTheme: IconThemeData(
+                    color: isDark
+                        ? AspireColors.darkTextSecondary
+                        : AspireColors.lightTextSecondary),
+                indicatorColor: AspireColors.primary,
+                destinations: destinations.map((d) {
+                  return NavigationRailDestination(
+                    icon: d.icon,
+                    selectedIcon: d.selectedIcon,
+                    label: Text(d.label),
+                  );
+                }).toList(),
+              ),
+              const VerticalDivider(thickness: 1, width: 1),
+
+              // Active Dashboard Window
+              Expanded(
+                child: IndexedStack(
+                  index: _currentIndex,
+                  children: screens,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

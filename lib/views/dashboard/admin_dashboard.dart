@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../config/colors.dart';
 import '../../services/api_service.dart';
 import '../../models/user.dart';
+import '../../models/department.dart';
 import '../../models/dashboard_stats.dart';
 import '../tasks/task_list_view.dart';
 import '../employees/employee_list_view.dart';
@@ -38,37 +39,6 @@ class _AdminDashboardState extends State<AdminDashboard>
   String _selectedRole = 'staff';
   String? _selectedDeptId;
 
-  // List of departments with fallback matching
-  List<Map<String, String>> _getDepts(bool isMock) {
-    if (isMock) {
-      return [
-        {'id': 'dept_sales', 'name': 'Sales & Marketing'},
-        {'id': 'dept_ops', 'name': 'Operations & Bookings'},
-        {'id': 'dept_support', 'name': 'Customer Support'},
-        {'id': 'dept_admin', 'name': 'Finance & Administration'},
-      ];
-    } else {
-      return [
-        {
-          'id': 'c7b07384-c113-431a-a563-3f16223405b1',
-          'name': 'Sales & Marketing'
-        },
-        {
-          'id': 'c7b07384-c113-431a-a563-3f16223405b2',
-          'name': 'Operations & Bookings'
-        },
-        {
-          'id': 'c7b07384-c113-431a-a563-3f16223405b3',
-          'name': 'Customer Support'
-        },
-        {
-          'id': 'c7b07384-c113-431a-a563-3f16223405b4',
-          'name': 'Finance & Administration'
-        },
-      ];
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -98,11 +68,38 @@ class _AdminDashboardState extends State<AdminDashboard>
     _selectedRole = 'staff';
     _selectedDeptId = null;
 
+    List<Department> dialogDepartments = [];
+    bool isLoadingDepartments = true;
+    String? departmentLoadError;
+
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            // Fetch departments on init
+            if (isLoadingDepartments &&
+                dialogDepartments.isEmpty &&
+                departmentLoadError == null) {
+              final api = Provider.of<ApiService>(context, listen: false);
+              api.fetchDepartments().then((depts) {
+                if (context.mounted) {
+                  setDialogState(() {
+                    dialogDepartments = depts.where((d) => d.isActive).toList();
+                    dialogDepartments.sort((a, b) =>
+                        a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+                    isLoadingDepartments = false;
+                  });
+                }
+              }).catchError((err) {
+                if (context.mounted) {
+                  setDialogState(() {
+                    isLoadingDepartments = false;
+                    departmentLoadError = err.toString();
+                  });
+                }
+              });
+            }
             return AlertDialog(
               title: const Text('Add New User Account'),
               content: SingleChildScrollView(
@@ -143,6 +140,9 @@ class _AdminDashboardState extends State<AdminDashboard>
                         DropdownMenuItem(
                             value: 'manager', child: Text('Manager')),
                         DropdownMenuItem(
+                            value: 'managing_director',
+                            child: Text('Managing Director')),
+                        DropdownMenuItem(
                             value: 'team_leader', child: Text('Team Leader')),
                         DropdownMenuItem(value: 'staff', child: Text('Staff')),
                       ],
@@ -154,20 +154,66 @@ class _AdminDashboardState extends State<AdminDashboard>
                         }
                       },
                     ),
-                    DropdownButtonFormField<String>(
-                      value: _selectedDeptId,
-                      decoration: const InputDecoration(
-                          labelText: 'Department Assignment'),
-                      items: _getDepts(isMock).map((d) {
-                        return DropdownMenuItem(
-                            value: d['id'], child: Text(d['name']!));
-                      }).toList(),
-                      onChanged: (val) {
-                        setDialogState(() {
-                          _selectedDeptId = val;
-                        });
-                      },
-                    ),
+                    const SizedBox(height: 12),
+                    if (_selectedRole != 'super_admin' &&
+                        _selectedRole != 'admin')
+                      isLoadingDepartments
+                          ? const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8.0),
+                              child: Text('Loading departments...',
+                                  style: TextStyle(color: Colors.grey)),
+                            )
+                          : departmentLoadError != null
+                              ? Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8.0),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.error_outline,
+                                          color: Colors.red, size: 20),
+                                      const SizedBox(width: 8),
+                                      const Expanded(
+                                        child: Text(
+                                            'Unable to load departments',
+                                            style:
+                                                TextStyle(color: Colors.red)),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          setDialogState(() {
+                                            isLoadingDepartments = true;
+                                            departmentLoadError = null;
+                                          });
+                                        },
+                                        child: const Text('Retry'),
+                                      )
+                                    ],
+                                  ),
+                                )
+                              : dialogDepartments.isEmpty
+                                  ? const Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(vertical: 8.0),
+                                      child: Text(
+                                          'No active departments available',
+                                          style: TextStyle(
+                                              color: Colors.grey,
+                                              fontStyle: FontStyle.italic)),
+                                    )
+                                  : DropdownButtonFormField<String>(
+                                      value: _selectedDeptId,
+                                      decoration: const InputDecoration(
+                                          labelText: 'Department Assignment'),
+                                      items: dialogDepartments.map((d) {
+                                        return DropdownMenuItem(
+                                            value: d.id, child: Text(d.name));
+                                      }).toList(),
+                                      onChanged: (val) {
+                                        setDialogState(() {
+                                          _selectedDeptId = val;
+                                        });
+                                      },
+                                    ),
                   ],
                 ),
               ),
@@ -176,40 +222,45 @@ class _AdminDashboardState extends State<AdminDashboard>
                     onPressed: () => Navigator.pop(context),
                     child: const Text('Cancel')),
                 ElevatedButton(
-                  onPressed: () async {
-                    final api = Provider.of<ApiService>(context, listen: false);
-                    final user = await api.createAdminUser({
-                      'name': _nameController.text.trim(),
-                      'email': _emailController.text.trim(),
-                      'phone': _phoneController.text.trim(),
-                      'designation': _designationController.text.trim(),
-                      'password': _passwordController.text.isEmpty
-                          ? null
-                          : _passwordController.text,
-                      'role': _selectedRole,
-                      'department_id': _selectedDeptId,
-                    });
+                  onPressed: (_selectedRole != 'super_admin' &&
+                          _selectedRole != 'admin' &&
+                          _selectedDeptId == null)
+                      ? null
+                      : () async {
+                          final api =
+                              Provider.of<ApiService>(context, listen: false);
+                          final user = await api.createAdminUser({
+                            'name': _nameController.text.trim(),
+                            'email': _emailController.text.trim(),
+                            'phone': _phoneController.text.trim(),
+                            'designation': _designationController.text.trim(),
+                            'password': _passwordController.text.isEmpty
+                                ? null
+                                : _passwordController.text,
+                            'role': _selectedRole,
+                            'department_id': _selectedDeptId,
+                          });
 
-                    if (mounted) {
-                      Navigator.pop(context);
-                      if (user != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(
-                                  'Successfully created user: ${user.name}'),
-                              backgroundColor: Colors.green),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(
-                                  api.errorMessage ?? 'Failed to create user'),
-                              backgroundColor: Colors.redAccent),
-                        );
-                      }
-                      setState(() {});
-                    }
-                  },
+                          if (mounted) {
+                            Navigator.pop(context);
+                            if (user != null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(
+                                        'Successfully created user: ${user.name}'),
+                                    backgroundColor: Colors.green),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(api.errorMessage ??
+                                        'Failed to create user'),
+                                    backgroundColor: Colors.redAccent),
+                              );
+                            }
+                            setState(() {});
+                          }
+                        },
                   child: const Text('Register User'),
                 )
               ],
@@ -229,17 +280,46 @@ class _AdminDashboardState extends State<AdminDashboard>
     _selectedRole = user.role;
     _selectedDeptId = user.departmentId;
 
-    // Verify selected department matches lists
-    final depts = _getDepts(isMock);
-    if (depts.every((d) => d['id'] != _selectedDeptId)) {
-      _selectedDeptId = null;
-    }
+    List<Department> dialogDepartments = [];
+    bool isLoadingDepartments = true;
+    String? departmentLoadError;
 
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            // Fetch departments on init
+            if (isLoadingDepartments &&
+                dialogDepartments.isEmpty &&
+                departmentLoadError == null) {
+              final api = Provider.of<ApiService>(context, listen: false);
+              api.fetchDepartments().then((depts) {
+                if (context.mounted) {
+                  setDialogState(() {
+                    dialogDepartments = depts.where((d) => d.isActive).toList();
+                    dialogDepartments.sort((a, b) =>
+                        a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+                    // Verify selected department matches lists
+                    if (_selectedDeptId != null &&
+                        dialogDepartments
+                            .every((d) => d.id != _selectedDeptId)) {
+                      _selectedDeptId = null;
+                    }
+
+                    isLoadingDepartments = false;
+                  });
+                }
+              }).catchError((err) {
+                if (context.mounted) {
+                  setDialogState(() {
+                    isLoadingDepartments = false;
+                    departmentLoadError = err.toString();
+                  });
+                }
+              });
+            }
             return AlertDialog(
               title: Text('Edit User: ${user.employeeId}'),
               content: SingleChildScrollView(
@@ -280,6 +360,9 @@ class _AdminDashboardState extends State<AdminDashboard>
                         DropdownMenuItem(
                             value: 'manager', child: Text('Manager')),
                         DropdownMenuItem(
+                            value: 'managing_director',
+                            child: Text('Managing Director')),
+                        DropdownMenuItem(
                             value: 'team_leader', child: Text('Team Leader')),
                         DropdownMenuItem(value: 'staff', child: Text('Staff')),
                       ],
@@ -291,20 +374,66 @@ class _AdminDashboardState extends State<AdminDashboard>
                         }
                       },
                     ),
-                    DropdownButtonFormField<String>(
-                      value: _selectedDeptId,
-                      decoration: const InputDecoration(
-                          labelText: 'Department Assignment'),
-                      items: depts.map((d) {
-                        return DropdownMenuItem(
-                            value: d['id'], child: Text(d['name']!));
-                      }).toList(),
-                      onChanged: (val) {
-                        setDialogState(() {
-                          _selectedDeptId = val;
-                        });
-                      },
-                    ),
+                    const SizedBox(height: 12),
+                    if (_selectedRole != 'super_admin' &&
+                        _selectedRole != 'admin')
+                      isLoadingDepartments
+                          ? const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8.0),
+                              child: Text('Loading departments...',
+                                  style: TextStyle(color: Colors.grey)),
+                            )
+                          : departmentLoadError != null
+                              ? Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8.0),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.error_outline,
+                                          color: Colors.red, size: 20),
+                                      const SizedBox(width: 8),
+                                      const Expanded(
+                                        child: Text(
+                                            'Unable to load departments',
+                                            style:
+                                                TextStyle(color: Colors.red)),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          setDialogState(() {
+                                            isLoadingDepartments = true;
+                                            departmentLoadError = null;
+                                          });
+                                        },
+                                        child: const Text('Retry'),
+                                      )
+                                    ],
+                                  ),
+                                )
+                              : dialogDepartments.isEmpty
+                                  ? const Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(vertical: 8.0),
+                                      child: Text(
+                                          'No active departments available',
+                                          style: TextStyle(
+                                              color: Colors.grey,
+                                              fontStyle: FontStyle.italic)),
+                                    )
+                                  : DropdownButtonFormField<String>(
+                                      value: _selectedDeptId,
+                                      decoration: const InputDecoration(
+                                          labelText: 'Department Assignment'),
+                                      items: dialogDepartments.map((d) {
+                                        return DropdownMenuItem(
+                                            value: d.id, child: Text(d.name));
+                                      }).toList(),
+                                      onChanged: (val) {
+                                        setDialogState(() {
+                                          _selectedDeptId = val;
+                                        });
+                                      },
+                                    ),
                   ],
                 ),
               ),
@@ -313,40 +442,45 @@ class _AdminDashboardState extends State<AdminDashboard>
                     onPressed: () => Navigator.pop(context),
                     child: const Text('Cancel')),
                 ElevatedButton(
-                  onPressed: () async {
-                    final api = Provider.of<ApiService>(context, listen: false);
-                    final updated = await api.updateAdminUser(user.id, {
-                      'name': _nameController.text.trim(),
-                      'email': _emailController.text.trim(),
-                      'phone': _phoneController.text.trim(),
-                      'designation': _designationController.text.trim(),
-                      'password': _passwordController.text.isEmpty
-                          ? null
-                          : _passwordController.text,
-                      'role': _selectedRole,
-                      'department_id': _selectedDeptId,
-                    });
+                  onPressed: (_selectedRole != 'super_admin' &&
+                          _selectedRole != 'admin' &&
+                          _selectedDeptId == null)
+                      ? null
+                      : () async {
+                          final api =
+                              Provider.of<ApiService>(context, listen: false);
+                          final updated = await api.updateAdminUser(user.id, {
+                            'name': _nameController.text.trim(),
+                            'email': _emailController.text.trim(),
+                            'phone': _phoneController.text.trim(),
+                            'designation': _designationController.text.trim(),
+                            'password': _passwordController.text.isEmpty
+                                ? null
+                                : _passwordController.text,
+                            'role': _selectedRole,
+                            'department_id': _selectedDeptId,
+                          });
 
-                    if (mounted) {
-                      Navigator.pop(context);
-                      if (updated != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content:
-                                  Text('Successfully updated user profile'),
-                              backgroundColor: Colors.green),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(
-                                  api.errorMessage ?? 'Failed to update user'),
-                              backgroundColor: Colors.redAccent),
-                        );
-                      }
-                      setState(() {});
-                    }
-                  },
+                          if (mounted) {
+                            Navigator.pop(context);
+                            if (updated != null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Successfully updated user profile'),
+                                    backgroundColor: Colors.green),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(api.errorMessage ??
+                                        'Failed to update user'),
+                                    backgroundColor: Colors.redAccent),
+                              );
+                            }
+                            setState(() {});
+                          }
+                        },
                   child: const Text('Save Changes'),
                 )
               ],
@@ -516,8 +650,6 @@ class _AdminDashboardState extends State<AdminDashboard>
 
                       return Column(
                         children: [
-                          _buildBreakdownCard('Tasks Status Matrix', taskStats),
-                          const SizedBox(height: 24),
                           _buildDeptStatsCard(
                               'Departments Load Distribution', deptStats),
                         ],
@@ -942,23 +1074,21 @@ class _AdminDashboardState extends State<AdminDashboard>
     final isMock = api.isUsingMockFallback;
 
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: Container(
-          color: Theme.of(context).cardColor,
-          child: TabBar(
-            controller: _tabController,
-            indicatorColor: AspireColors.secondary,
-            labelColor: AspireColors.secondary,
-            unselectedLabelColor: Colors.grey,
-            tabs: const [
-              Tab(icon: Icon(Icons.analytics_outlined), text: 'Overview'),
-              Tab(icon: Icon(Icons.people_outline), text: 'Users Directory'),
-              Tab(
-                  icon: Icon(Icons.settings_applications_outlined),
-                  text: 'Utilities'),
-            ],
-          ),
+      appBar: AppBar(
+        title: const Text('Admin Dashboard'),
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          indicatorColor: AspireColors.secondary,
+          labelColor: AspireColors.secondary,
+          unselectedLabelColor: Colors.grey,
+          tabs: const [
+            Tab(icon: Icon(Icons.analytics_outlined), text: 'Overview'),
+            Tab(icon: Icon(Icons.people_outline), text: 'Users Directory'),
+            Tab(
+                icon: Icon(Icons.settings_applications_outlined),
+                text: 'Utilities'),
+          ],
         ),
       ),
       body: TabBarView(

@@ -97,7 +97,6 @@ class _TaskCalendarViewState extends State<TaskCalendarView> {
       case 'completed':
         return Colors.green;
       case 'in_review':
-      case 'waiting_for_review':
         return Colors.orange;
       case 'pending':
       case 'in_progress':

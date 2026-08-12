@@ -83,8 +83,26 @@ class User {
     };
   }
 
-  bool get isManager => role == 'manager';
+  bool get isManager => role == 'manager' || role == 'managing_director';
   bool get isTL => role == 'team_leader';
   bool get isStaff => role == 'staff';
   bool get isAdmin => role == 'admin';
+}
+
+String formatRoleLabel(String role) {
+  switch (role) {
+    case 'super_admin':
+    case 'admin':
+      return 'Super Admin';
+    case 'manager':
+      return 'Manager';
+    case 'managing_director':
+      return 'Managing Director';
+    case 'team_leader':
+      return 'Team Leader';
+    case 'staff':
+      return 'Staff';
+    default:
+      return role;
+  }
 }

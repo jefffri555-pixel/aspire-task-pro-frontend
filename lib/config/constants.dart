@@ -1,6 +1,6 @@
 class AppConstants {
   // Replace this base URL with your server IP when testing on physical mobile devices
-  static const String apiBaseUrl = 'http://localhost:5000/api';
+  static const String apiBaseUrl = 'https://aspire-task-pro-backend.onrender.com/api';
 
   // Session keys
   static const String tokenKey = 'jwt_token';
@@ -9,6 +9,7 @@ class AppConstants {
 
   // Role mappings
   static const String roleManager = 'manager';
+  static const String roleManagingDirector = 'managing_director';
   static const String roleTeamLeader = 'team_leader';
   static const String roleStaff = 'staff';
 
@@ -17,7 +18,6 @@ class AppConstants {
     'pending',
     'assigned',
     'in_progress',
-    'waiting_for_review',
     'completed',
     'rejected',
     'overdue'

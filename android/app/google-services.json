@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "462653983121",
+    "project_id": "aspire-cb886",
+    "storage_bucket": "aspire-cb886.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:462653983121:android:0ba62a1887ee92844c7230",
+        "android_client_info": {
+          "package_name": "com.example.aspire_task_pro_frontend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDVswG1Wc3FEDLLoG3y3Tu6wSN__pHX43g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

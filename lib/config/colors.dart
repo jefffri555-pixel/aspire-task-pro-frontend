@@ -45,8 +45,8 @@ class AspireColors {
       case 'assigned':
         return statusAssigned;
       case 'in_progress':
-        return statusInProgress;
       case 'waiting_for_review':
+        return statusInProgress;
       case 'under_review':
       case 'in_review':
         return statusReview;

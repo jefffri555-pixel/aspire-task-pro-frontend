@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config/constants.dart';
 import '../models/user.dart';
@@ -14,6 +15,7 @@ import '../models/attendance.dart';
 import '../models/leave_request.dart';
 import 'storage_service.dart';
 import '../utils/download_helper.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class ApiService extends ChangeNotifier {
   User? _currentUser;
@@ -61,7 +63,74 @@ class ApiService extends ChangeNotifier {
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
+Future<void> registerFcmToken() async {
+  try {
+    // For now, register Android device tokens only.
+    // Web push setup will be handled separately.
+    if (kIsWeb) {
+      debugPrint('FCM token registration skipped on Web for now.');
+      return;
+    }
+final settings = await FirebaseMessaging.instance.requestPermission(
+  alert: true,
+  badge: true,
+  sound: true,
+);
 
+debugPrint(
+  'Notification permission: ${settings.authorizationStatus}',
+);
+final settings = await FirebaseMessaging.instance.requestPermission(
+  alert: true,
+  badge: true,
+  sound: true,
+);
+
+debugPrint(
+  'Notification permission: ${settings.authorizationStatus}',
+);
+
+if (Platform.isIOS) {
+  final apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+
+  if (apnsToken == null) {
+    debugPrint('APNs token is not available yet.');
+    return;
+  }
+
+  debugPrint('APNs TOKEN: $apnsToken');
+}
+
+final fcmToken = await FirebaseMessaging.instance.getToken();
+    final fcmToken = await FirebaseMessaging.instance.getToken();
+
+    if (fcmToken == null || fcmToken.isEmpty) {
+      debugPrint('FCM token not available.');
+      return;
+    }
+
+    debugPrint('FCM TOKEN: $fcmToken');
+
+    final response = await http.post(
+      Uri.parse('${AppConstants.apiBaseUrl}/push/register-token'),
+      headers: _getHeaders(),
+      body: jsonEncode({
+        'token': fcmToken,
+        'device_type': Platform.isIOS ? 'ios' : 'android',
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      debugPrint('FCM token saved to backend successfully.');
+    } else {
+      debugPrint(
+        'Failed to save FCM token: ${response.statusCode} ${response.body}',
+      );
+    }
+  } catch (e) {
+    debugPrint('FCM token registration error: $e');
+  }
+}
   // ==========================================
   // AUTHENTICATION API
   // ==========================================
@@ -95,6 +164,7 @@ class ApiService extends ChangeNotifier {
         _useMockFallback = false;
         _isLoading = false;
         notifyListeners();
+        await registerFcmToken();
         return true;
       } else {
         final errorData = jsonDecode(response.body);
@@ -1252,9 +1322,14 @@ class ApiService extends ChangeNotifier {
         Uri.parse('${AppConstants.apiBaseUrl}/tasks/$id'),
         headers: _getHeaders(),
       );
-      return res.statusCode == 200;
+      if (res.statusCode == 200) {
+        return true;
+      } else {
+        final data = json.decode(res.body);
+        throw Exception(data['message'] ?? data['error'] ?? 'Failed to delete task');
+      }
     } catch (e) {
-      return false;
+      throw Exception(e.toString().replaceAll('Exception: ', ''));
     }
   }
 

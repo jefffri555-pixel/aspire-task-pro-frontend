@@ -80,15 +80,6 @@ final settings = await FirebaseMessaging.instance.requestPermission(
 debugPrint(
   'Notification permission: ${settings.authorizationStatus}',
 );
-final settings = await FirebaseMessaging.instance.requestPermission(
-  alert: true,
-  badge: true,
-  sound: true,
-);
-
-debugPrint(
-  'Notification permission: ${settings.authorizationStatus}',
-);
 
 if (Platform.isIOS) {
   final apnsToken = await FirebaseMessaging.instance.getAPNSToken();
@@ -101,7 +92,6 @@ if (Platform.isIOS) {
   debugPrint('APNs TOKEN: $apnsToken');
 }
 
-final fcmToken = await FirebaseMessaging.instance.getToken();
     final fcmToken = await FirebaseMessaging.instance.getToken();
 
     if (fcmToken == null || fcmToken.isEmpty) {

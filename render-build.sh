@@ -3,8 +3,11 @@ set -e
 
 FLUTTER_DIR="$HOME/flutter"
 
-if [ ! -d "$FLUTTER_DIR/bin" ]; then
+# Remove incomplete/corrupted cached Flutter installation
+if [ ! -x "$FLUTTER_DIR/bin/flutter" ]; then
+  echo "Flutter SDK missing or incomplete. Reinstalling..."
   rm -rf "$FLUTTER_DIR"
+
   git clone https://github.com/flutter/flutter.git \
     --branch stable \
     --depth 1 \
@@ -12,6 +15,9 @@ if [ ! -d "$FLUTTER_DIR/bin" ]; then
 fi
 
 export PATH="$FLUTTER_DIR/bin:$PATH"
+
+echo "Flutter location:"
+ls -la "$FLUTTER_DIR/bin/flutter"
 
 "$FLUTTER_DIR/bin/flutter" --version
 "$FLUTTER_DIR/bin/flutter" config --enable-web

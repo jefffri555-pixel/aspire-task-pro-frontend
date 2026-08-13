@@ -65,12 +65,7 @@ class ApiService extends ChangeNotifier {
   }
 Future<void> registerFcmToken() async {
   try {
-    // For now, register Android device tokens only.
-    // Web push setup will be handled separately.
-    if (kIsWeb) {
-      debugPrint('FCM token registration skipped on Web for now.');
-      return;
-    }
+
 final settings = await FirebaseMessaging.instance.requestPermission(
   alert: true,
   badge: true,
@@ -81,7 +76,7 @@ debugPrint(
   'Notification permission: ${settings.authorizationStatus}',
 );
 
-if (Platform.isIOS) {
+if (!kIsWeb && Platform.isIOS) {
   final apnsToken = await FirebaseMessaging.instance.getAPNSToken();
 
   if (apnsToken == null) {
@@ -92,7 +87,14 @@ if (Platform.isIOS) {
   debugPrint('APNs TOKEN: $apnsToken');
 }
 
-    final fcmToken = await FirebaseMessaging.instance.getToken();
+    String? fcmToken;
+    if (kIsWeb) {
+      fcmToken = await FirebaseMessaging.instance.getToken(
+        vapidKey: 'BLhZfPXMC_iLrEmfMm-qWJKkt1CP60gWiq_RR1u7DfrjwEE_dICiYTZE6wWYgw6Fju7S59xcDSe9X9umusWlNig',
+      );
+    } else {
+      fcmToken = await FirebaseMessaging.instance.getToken();
+    }
 
     if (fcmToken == null || fcmToken.isEmpty) {
       debugPrint('FCM token not available.');
@@ -106,7 +108,7 @@ if (Platform.isIOS) {
       headers: _getHeaders(),
       body: jsonEncode({
         'token': fcmToken,
-        'device_type': Platform.isIOS ? 'ios' : 'android',
+        'device_type': kIsWeb ? 'web' : (Platform.isIOS ? 'ios' : 'android'),
       }),
     );
 

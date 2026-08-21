@@ -9,6 +9,9 @@ class AspireColors {
   static const Color blue = Color(0xFF0A63FF); // Bright Blue
   static const Color accent = Color(0xFF22C55E); // Green
   static const Color warning = Color(0xFFF59E0B); // Orange
+  static const Color success = Color(0xFF4CAF50); // Green
+  static const Color error = Color(0xFFF44336); // Red
+  static const Color textSecondary = Color(0xFF7E8299); // Light gray
 
   // Light Mode Colors
   static const Color lightBg =

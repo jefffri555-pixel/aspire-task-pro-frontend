@@ -13,9 +13,12 @@ import '../models/dashboard_stats.dart';
 import '../models/department.dart';
 import '../models/attendance.dart';
 import '../models/leave_request.dart';
+import '../models/holiday.dart';
+import '../models/regularization_request.dart';
 import 'storage_service.dart';
 import '../utils/download_helper.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ApiService extends ChangeNotifier {
   User? _currentUser;
@@ -2652,7 +2655,75 @@ if (!kIsWeb && Platform.isIOS) {
   }
 
   // ==========================================
-  // ATTENDANCE API
+  // HOLIDAY ENDPOINTS
+  // ==========================================
+
+  Future<List<Holiday>> getHolidays() async {
+    if (_useMockFallback) {
+      return [];
+    }
+
+    try {
+      final res = await http.get(
+        Uri.parse('${AppConstants.apiBaseUrl}/holidays'),
+        headers: _getHeaders(),
+      );
+      if (res.statusCode == 200) {
+        final List data = json.decode(res.body);
+        return data.map((json) => Holiday.fromJson(json)).toList();
+      }
+    } catch (e) {
+      _errorMessage = e.toString();
+    }
+    return [];
+  }
+
+  Future<bool> createHoliday(Holiday holiday) async {
+    if (_useMockFallback) return true;
+    try {
+      final res = await http.post(
+        Uri.parse('${AppConstants.apiBaseUrl}/holidays'),
+        headers: _getHeaders(),
+        body: json.encode(holiday.toJson()),
+      );
+      return res.statusCode == 201;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    }
+  }
+
+  Future<bool> updateHoliday(Holiday holiday) async {
+    if (_useMockFallback) return true;
+    try {
+      final res = await http.put(
+        Uri.parse('${AppConstants.apiBaseUrl}/holidays/${holiday.id}'),
+        headers: _getHeaders(),
+        body: json.encode(holiday.toJson()),
+      );
+      return res.statusCode == 200;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    }
+  }
+
+  Future<bool> deleteHoliday(String id) async {
+    if (_useMockFallback) return true;
+    try {
+      final res = await http.delete(
+        Uri.parse('${AppConstants.apiBaseUrl}/holidays/$id'),
+        headers: _getHeaders(),
+      );
+      return res.statusCode == 200;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    }
+  }
+
+  // ==========================================
+  // REGULARIZATION ENDPOINTS
   // ==========================================
 
   Future<List<Attendance>> fetchAttendance(
@@ -2711,7 +2782,136 @@ if (!kIsWeb && Platform.isIOS) {
     return null;
   }
 
-  Future<Attendance?> markAttendance(String action) async {
+  Future<Map<String, dynamic>?> fetchAttendanceSettings() async {
+    if (_useMockFallback) {
+      return {
+        'office_name': 'Aspire HQ (Mock)',
+        'office_latitude': 37.4220,
+        'office_longitude': -122.0841,
+        'office_radius': 200,
+      };
+    }
+    try {
+      final res = await http.get(
+        Uri.parse('${AppConstants.apiBaseUrl}/attendance/settings'),
+        headers: _getHeaders(),
+      );
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body);
+      }
+    } catch (e) {
+      print('Fetch Attendance Settings Error: $e');
+    }
+    return null;
+  }
+
+  Future<AttendanceDashboardData?> fetchAttendanceDashboard({String? date}) async {
+    if (_useMockFallback) {
+      return AttendanceDashboardData(
+        summary: {
+          'totalEmployees': _mockAttendance.length,
+          'present': _mockAttendance.length,
+          'late': 0,
+          'halfDay': 0,
+          'absent': 0,
+          'leave': 0,
+          'workFromHome': 0,
+          'onDuty': 0,
+          'notMarkedYet': 0,
+        },
+        attendanceList: _mockAttendance,
+      );
+    }
+    try {
+      final dateParam = date != null ? '?date=$date' : '';
+      final res = await http.get(
+        Uri.parse('${AppConstants.apiBaseUrl}/attendance/dashboard$dateParam'),
+        headers: _getHeaders(),
+      );
+      if (res.statusCode == 200) {
+        return AttendanceDashboardData.fromJson(jsonDecode(res.body));
+      }
+    } catch (e) {
+      print('Fetch Attendance Dashboard Error: $e');
+    }
+    return null;
+  }
+
+  Future<AttendanceDashboardData?> fetchAttendanceHistory(
+      {String? startDate, String? endDate, String? userId, String? departmentId}) async {
+    if (_useMockFallback) {
+      return AttendanceDashboardData(
+        summary: {
+          'totalWorkingDays': 1,
+          'presentDays': 1,
+          'lateDays': 0,
+          'halfDays': 0,
+          'absentDays': 0,
+          'leaveDays': 0,
+          'workFromHomeDays': 0,
+          'onDutyDays': 0,
+          'totalWorkingHours': 8,
+          'averageWorkingHours': 8,
+          'totalLateMinutes': 0,
+        },
+        attendanceList: _mockAttendance,
+      );
+    }
+    try {
+      String query = '?';
+      if (startDate != null) query += 'startDate=$startDate&';
+      if (endDate != null) query += 'endDate=$endDate&';
+      if (userId != null) query += 'userId=$userId&';
+      if (departmentId != null) query += 'departmentId=$departmentId&';
+
+      final res = await http.get(
+        Uri.parse('${AppConstants.apiBaseUrl}/attendance/history$query'),
+        headers: _getHeaders(),
+      );
+      if (res.statusCode == 200) {
+        return AttendanceDashboardData.fromJson(jsonDecode(res.body));
+      }
+    } catch (e) {
+      print('Fetch Attendance History Error: $e');
+    }
+    return null;
+  }
+
+  Future<String?> downloadAttendanceReport(
+      String format, {String? startDate, String? endDate, String? userId, String? departmentId}) async {
+    try {
+      String query = '?';
+      if (startDate != null) query += 'startDate=$startDate&';
+      if (endDate != null) query += 'endDate=$endDate&';
+      if (userId != null) query += 'userId=$userId&';
+      if (departmentId != null) query += 'departmentId=$departmentId&';
+
+      final res = await http.get(
+        Uri.parse('${AppConstants.apiBaseUrl}/attendance/export/$format$query'),
+        headers: _getHeaders(),
+      );
+
+      if (res.statusCode == 200) {
+        String mimeType = 'text/csv';
+        String ext = 'csv';
+        if (format == 'excel') {
+          mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+          ext = 'xlsx';
+        } else if (format == 'pdf') {
+          mimeType = 'application/pdf';
+          ext = 'pdf';
+        }
+
+        final filename = 'Attendance_Report_${DateTime.now().millisecondsSinceEpoch}.$ext';
+        return await downloadAndSaveFile(res.bodyBytes, filename, mimeType);
+      }
+    } catch (e) {
+      print('Export Attendance Error: $e');
+    }
+    return null;
+  }
+
+  Future<Attendance?> markAttendance(String action, {XFile? selfieFile, double? lat, double? lng, bool forceEndBreak = false}) async {
     if (_useMockFallback) {
       final todayStr = DateTime.now().toString().split(' ')[0];
       final idx = _mockAttendance.indexWhere(
@@ -2729,6 +2929,7 @@ if (!kIsWeb && Platform.isIOS) {
           status: 'present',
           checkInTime: DateTime.now().toString(),
           checkOutTime: null,
+          punchInSelfie: selfieFile?.path,
         );
         _mockAttendance.add(record);
         notifyListeners();
@@ -2745,6 +2946,8 @@ if (!kIsWeb && Platform.isIOS) {
           status: _mockAttendance[idx].status,
           checkInTime: _mockAttendance[idx].checkInTime,
           checkOutTime: DateTime.now().toString(),
+          punchInSelfie: _mockAttendance[idx].punchInSelfie,
+          punchOutSelfie: selfieFile?.path,
         );
         _mockAttendance[idx] = record;
         notifyListeners();
@@ -2753,11 +2956,32 @@ if (!kIsWeb && Platform.isIOS) {
     }
 
     try {
-      final res = await http.post(
-        Uri.parse('${AppConstants.apiBaseUrl}/attendance/mark'),
-        headers: _getHeaders(),
-        body: jsonEncode({'action': action}),
-      );
+      final uri = Uri.parse('${AppConstants.apiBaseUrl}/attendance/mark');
+      final request = http.MultipartRequest('POST', uri);
+      request.headers.addAll(_getHeaders());
+      request.fields['action'] = action;
+      if (lat != null) request.fields['lat'] = lat.toString();
+      if (lng != null) request.fields['lng'] = lng.toString();
+      if (forceEndBreak) request.fields['force_end_break'] = 'true';
+
+      if (selfieFile != null) {
+        if (kIsWeb) {
+          final bytes = await selfieFile.readAsBytes();
+          request.files.add(http.MultipartFile.fromBytes(
+            'selfie',
+            bytes,
+            filename: selfieFile.name,
+          ));
+        } else {
+          request.files.add(await http.MultipartFile.fromPath(
+            'selfie',
+            selfieFile.path,
+          ));
+        }
+      }
+
+      final streamedResponse = await request.send();
+      final res = await http.Response.fromStream(streamedResponse);
       if (res.statusCode == 200 || res.statusCode == 201) {
         final record = Attendance.fromJson(jsonDecode(res.body));
         notifyListeners();
@@ -2814,6 +3038,43 @@ if (!kIsWeb && Platform.isIOS) {
       _errorMessage = e.toString();
     }
     return null;
+  }
+
+  // ==========================================
+  // BREAK TRACKING API
+  // ==========================================
+
+  Future<bool> startBreak(String breakType) async {
+    if (_useMockFallback) return true;
+    try {
+      final res = await http.post(
+        Uri.parse('${AppConstants.apiBaseUrl}/attendance/breaks/start'),
+        headers: _getHeaders(),
+        body: jsonEncode({'break_type': breakType}),
+      );
+      if (res.statusCode == 201) return true;
+      final data = jsonDecode(res.body);
+      _errorMessage = data['error'] ?? 'Failed to start break';
+    } catch (e) {
+      _errorMessage = e.toString();
+    }
+    return false;
+  }
+
+  Future<bool> endBreak() async {
+    if (_useMockFallback) return true;
+    try {
+      final res = await http.put(
+        Uri.parse('${AppConstants.apiBaseUrl}/attendance/breaks/end'),
+        headers: _getHeaders(),
+      );
+      if (res.statusCode == 200) return true;
+      final data = jsonDecode(res.body);
+      _errorMessage = data['error'] ?? 'Failed to end break';
+    } catch (e) {
+      _errorMessage = e.toString();
+    }
+    return false;
   }
 
   // ==========================================
@@ -3152,5 +3413,305 @@ if (!kIsWeb && Platform.isIOS) {
       throw Exception(message);
     }
     return response.bodyBytes;
+  }
+
+  // --- Attendance Management ---
+  Future<Attendance?> getTodayAttendance() async {
+    return fetchTodayAttendanceStatus();
+  }
+
+  // --- Settings Management ---
+  Future<Map<String, dynamic>> getAttendanceSettings() async {
+    if (_useMockFallback) {
+      return {
+        'shift_start_time': '09:30',
+        'shift_end_time': '18:30',
+        'grace_period_minutes': 15,
+        'half_day_cutoff_time': '12:00',
+        'min_working_hours': 8,
+        'min_half_day_hours': 4,
+        'office_name': 'Aspire HQ (Mock)',
+        'office_latitude': 37.4220,
+        'office_longitude': -122.0841,
+        'office_radius': 200,
+      };
+    }
+    
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.apiBaseUrl}/attendance/settings'),
+        headers: _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return Map<String, dynamic>.from(data);
+      }
+    } catch (e) {
+      debugPrint('Error getting attendance settings: $e');
+    }
+    return {};
+  }
+
+  Future<bool> saveAttendanceSetting(String key, dynamic value) async {
+    if (_useMockFallback) return true;
+    
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConstants.apiBaseUrl}/settings'),
+        headers: _getHeaders(),
+        body: jsonEncode({
+          'key': key,
+          'value': value.toString(),
+        }),
+      );
+      
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Error saving attendance setting: $e');
+      return false;
+    }
+  }
+
+  // --- Leave / WFH / On Duty Requests Management ---
+  Future<LeaveRequest?> createLeaveRequest({
+    required String leaveType,
+    required String startDate,
+    required String endDate,
+    required String durationType,
+    String? reason,
+    String? location,
+    String? purpose,
+    String? attachmentUrl,
+  }) async {
+    if (_useMockFallback) {
+      final newReq = LeaveRequest(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        userId: _currentUser?.id ?? '',
+        leaveType: leaveType,
+        startDate: startDate,
+        endDate: endDate,
+        durationType: durationType,
+        status: 'pending',
+        reason: reason,
+        location: location,
+        purpose: purpose,
+        attachmentUrl: attachmentUrl,
+        createdAt: DateTime.now().toIso8601String(),
+      );
+      _mockLeaves.insert(0, newReq);
+      return newReq;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConstants.apiBaseUrl}/leaves'),
+        headers: _getHeaders(),
+        body: jsonEncode({
+          'leave_type': leaveType,
+          'start_date': startDate,
+          'end_date': endDate,
+          'duration_type': durationType,
+          'reason': reason,
+          'location': location,
+          'purpose': purpose,
+          'attachment_url': attachmentUrl,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        return LeaveRequest.fromJson(data['request']);
+      } else {
+        final data = jsonDecode(response.body);
+        _errorMessage = data['error'] ?? 'Failed to create request';
+      }
+    } catch (e) {
+      _errorMessage = 'Network error: $e';
+    }
+    return null;
+  }
+
+  Future<List<LeaveRequest>> getLeaveRequests({
+    String? status,
+    String? type,
+    String? userId,
+    String? departmentId,
+    String? startDate,
+    String? endDate,
+  }) async {
+    if (_useMockFallback) return _mockLeaves;
+
+    try {
+      final queryParams = <String, String>{};
+      if (status != null) queryParams['status'] = status;
+      if (type != null) queryParams['type'] = type;
+      if (userId != null) queryParams['userId'] = userId;
+      if (departmentId != null) queryParams['departmentId'] = departmentId;
+      if (startDate != null) queryParams['startDate'] = startDate;
+      if (endDate != null) queryParams['endDate'] = endDate;
+
+      final uri = Uri.parse('${AppConstants.apiBaseUrl}/leaves').replace(queryParameters: queryParams);
+      final response = await http.get(uri, headers: _getHeaders());
+
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+        return data.map((item) => LeaveRequest.fromJson(item)).toList();
+      }
+    } catch (e) {
+      debugPrint('Error getting leave requests: $e');
+    }
+    return [];
+  }
+
+  Future<bool> reviewLeaveRequest(String id, String status, String remarks) async {
+    if (_useMockFallback) {
+      final index = _mockLeaves.indexWhere((r) => r.id == id);
+      if (index != -1) {
+        final old = _mockLeaves[index];
+        _mockLeaves[index] = LeaveRequest(
+          id: old.id,
+          userId: old.userId,
+          employeeName: old.employeeName,
+          leaveType: old.leaveType,
+          startDate: old.startDate,
+          endDate: old.endDate,
+          status: status,
+          reason: old.reason,
+          adminNotes: remarks,
+          createdAt: old.createdAt,
+          durationType: old.durationType,
+          location: old.location,
+          purpose: old.purpose,
+          attachmentUrl: old.attachmentUrl,
+        );
+      }
+      return true;
+    }
+
+    try {
+      final response = await http.put(
+        Uri.parse('${AppConstants.apiBaseUrl}/leaves/$id/review'),
+        headers: _getHeaders(),
+        body: jsonEncode({
+          'status': status,
+          'remarks': remarks,
+        }),
+      );
+
+      if (response.statusCode == 200) return true;
+      
+      final data = jsonDecode(response.body);
+      _errorMessage = data['error'] ?? 'Failed to review request';
+    } catch (e) {
+      _errorMessage = 'Network error: $e';
+    }
+    return false;
+  }
+  // --- Attendance Regularization Requests ---
+  Future<RegularizationRequest?> createRegularizationRequest({
+    required String date,
+    required String correctionType,
+    String? currentValue,
+    required String requestedValue,
+    String? reason,
+    String? attachmentPath,
+  }) async {
+    if (_useMockFallback) {
+      return null; // Mock not fully implemented for this yet
+    }
+    
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${AppConstants.apiBaseUrl}/regularization'),
+      );
+      request.headers.addAll(_getHeaders()..remove('Content-Type'));
+      
+      request.fields['date'] = date;
+      request.fields['correction_type'] = correctionType;
+      if (currentValue != null) request.fields['current_value'] = currentValue;
+      request.fields['requested_value'] = requestedValue;
+      if (reason != null) request.fields['reason'] = reason;
+
+      if (attachmentPath != null) {
+        request.files.add(await http.MultipartFile.fromPath('attachment', attachmentPath));
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        return RegularizationRequest.fromJson(data['request']);
+      } else {
+        final data = jsonDecode(response.body);
+        _errorMessage = data['error'] ?? 'Failed to submit regularization request';
+      }
+    } catch (e) {
+      _errorMessage = 'Network error: $e';
+    }
+    return null;
+  }
+
+  Future<List<RegularizationRequest>> fetchMyRegularizationRequests() async {
+    if (_useMockFallback) return [];
+    try {
+      final res = await http.get(Uri.parse('${AppConstants.apiBaseUrl}/regularization/my-requests'), headers: _getHeaders());
+      if (res.statusCode == 200) {
+        final List data = jsonDecode(res.body);
+        return data.map((e) => RegularizationRequest.fromJson(e)).toList();
+      }
+    } catch (e) {
+      debugPrint('Error getting my regularization requests: $e');
+    }
+    return [];
+  }
+
+  Future<List<RegularizationRequest>> fetchAllRegularizationRequests({
+    String? status,
+    String? employeeId,
+    String? departmentId,
+    String? startDate,
+    String? endDate,
+    String? type,
+  }) async {
+    if (_useMockFallback) return [];
+    try {
+      final queryParams = <String, String>{};
+      if (status != null) queryParams['status'] = status;
+      if (employeeId != null) queryParams['employeeId'] = employeeId;
+      if (departmentId != null) queryParams['departmentId'] = departmentId;
+      if (startDate != null) queryParams['startDate'] = startDate;
+      if (endDate != null) queryParams['endDate'] = endDate;
+      if (type != null) queryParams['type'] = type;
+
+      final uri = Uri.parse('${AppConstants.apiBaseUrl}/regularization/all').replace(queryParameters: queryParams);
+      final res = await http.get(uri, headers: _getHeaders());
+      if (res.statusCode == 200) {
+        final List data = jsonDecode(res.body);
+        return data.map((e) => RegularizationRequest.fromJson(e)).toList();
+      }
+    } catch (e) {
+      debugPrint('Error getting all regularization requests: $e');
+    }
+    return [];
+  }
+
+  Future<bool> updateRegularizationRequestStatus(String id, String status, String remarks) async {
+    if (_useMockFallback) return false;
+    try {
+      final res = await http.put(
+        Uri.parse('${AppConstants.apiBaseUrl}/regularization/$id/status'),
+        headers: _getHeaders(),
+        body: jsonEncode({'status': status, 'remarks': remarks}),
+      );
+      if (res.statusCode == 200) return true;
+      final data = jsonDecode(res.body);
+      _errorMessage = data['error'] ?? 'Failed to update request';
+    } catch (e) {
+      _errorMessage = 'Network error: $e';
+    }
+    return false;
   }
 }

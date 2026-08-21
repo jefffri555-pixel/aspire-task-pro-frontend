@@ -14,6 +14,8 @@ import 'employees/employee_list_view.dart';
 import 'admin/department_management_page.dart';
 import 'reports/reports_view.dart';
 import 'calendar/task_calendar_view.dart';
+import 'attendance/attendance_view.dart';
+import 'attendance/attendance_hub_view.dart';
 import '../models/user.dart';
 
 class MainNavigationHub extends StatefulWidget {
@@ -41,6 +43,7 @@ class _MainNavigationHubState extends State<MainNavigationHub> {
         const TaskListView(),
         const EmployeeListView(),
         const DepartmentManagementPage(),
+        const AttendanceHubView(),
         const ReportsView(),
       ];
     } else if (role == 'manager' || role == 'managing_director') {
@@ -57,6 +60,7 @@ class _MainNavigationHubState extends State<MainNavigationHub> {
         const EmployeeListView(),
         const DepartmentManagementPage(),
         const TaskCalendarView(),
+        const AttendanceHubView(),
         const ReportsView(),
       ];
     } else if (role == 'team_leader') {
@@ -75,6 +79,7 @@ class _MainNavigationHubState extends State<MainNavigationHub> {
           filterDepartmentId: user.departmentId,
         ),
         const TaskCalendarView(),
+        const AttendanceHubView(),
         const ReportsView(),
       ];
     } else {
@@ -89,6 +94,7 @@ class _MainNavigationHubState extends State<MainNavigationHub> {
         ),
         const TaskListView(),
         const TaskCalendarView(),
+        const AttendanceHubView(),
       ];
     }
   }
@@ -116,6 +122,11 @@ class _MainNavigationHubState extends State<MainNavigationHub> {
           icon: Icon(Icons.domain_outlined),
           selectedIcon: Icon(Icons.domain),
           label: 'Departments',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.access_time_outlined),
+          selectedIcon: Icon(Icons.access_time),
+          label: 'Attendance',
         ),
         NavigationDestination(
           icon: Icon(Icons.analytics_outlined),
@@ -146,6 +157,10 @@ class _MainNavigationHubState extends State<MainNavigationHub> {
             selectedIcon: Icon(Icons.calendar_month),
             label: 'Calendar'),
         NavigationDestination(
+            icon: Icon(Icons.access_time_outlined),
+            selectedIcon: Icon(Icons.access_time),
+            label: 'Attendance'),
+        NavigationDestination(
             icon: Icon(Icons.analytics_outlined),
             selectedIcon: Icon(Icons.analytics),
             label: 'Reports'),
@@ -169,6 +184,10 @@ class _MainNavigationHubState extends State<MainNavigationHub> {
             selectedIcon: Icon(Icons.calendar_month),
             label: 'Calendar'),
         NavigationDestination(
+            icon: Icon(Icons.access_time_outlined),
+            selectedIcon: Icon(Icons.access_time),
+            label: 'Attendance'),
+        NavigationDestination(
             icon: Icon(Icons.analytics_outlined),
             selectedIcon: Icon(Icons.analytics),
             label: 'Reports'),
@@ -187,6 +206,10 @@ class _MainNavigationHubState extends State<MainNavigationHub> {
             icon: Icon(Icons.calendar_month_outlined),
             selectedIcon: Icon(Icons.calendar_month),
             label: 'Calendar'),
+        NavigationDestination(
+            icon: Icon(Icons.access_time_outlined),
+            selectedIcon: Icon(Icons.access_time),
+            label: 'Attendance'),
       ];
     }
   }

@@ -4,6 +4,14 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Camera access is required for capturing live selfies for attendance punch in and punch out.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Photo library access is required to save and upload your selfies.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Location access is required to verify your office location during punch in and punch out.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Location access is required to verify your office location during punch in and punch out.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Voice recording is used to send task chat audio messages and use speech-to-text for task fields.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

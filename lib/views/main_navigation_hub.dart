@@ -82,6 +82,20 @@ class _MainNavigationHubState extends State<MainNavigationHub> {
         const AttendanceHubView(),
         const ReportsView(),
       ];
+    } else if (role == 'staff') {
+      return [
+        StaffDashboard(
+          onNavigate: (index) {
+            if (!mounted) return;
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+        ),
+        const TaskListView(),
+        const TaskCalendarView(),
+        const AttendanceHubView(),
+      ];
     } else {
       return [
         StaffDashboard(
@@ -191,6 +205,25 @@ class _MainNavigationHubState extends State<MainNavigationHub> {
             icon: Icon(Icons.analytics_outlined),
             selectedIcon: Icon(Icons.analytics),
             label: 'Reports'),
+      ];
+    } else if (role == 'staff') {
+      return const [
+        NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
+            label: 'Dashboard'),
+        NavigationDestination(
+            icon: Icon(Icons.task_outlined),
+            selectedIcon: Icon(Icons.task),
+            label: 'My Tasks'),
+        NavigationDestination(
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month),
+            label: 'Calendar'),
+        NavigationDestination(
+            icon: Icon(Icons.access_time_outlined),
+            selectedIcon: Icon(Icons.access_time),
+            label: 'Attendance'),
       ];
     } else {
       return const [

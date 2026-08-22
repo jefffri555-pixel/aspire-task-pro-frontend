@@ -31,7 +31,7 @@ class _MainNavigationHubState extends State<MainNavigationHub> {
   // Build the list of active screens based on user role
   List<Widget> _getScreens(User user) {
     final role = user.role;
-    if (role == 'admin') {
+    if (role == 'admin' || role == 'super_admin') {
       return [
         AdminDashboard(
           onNavigate: (index) {
@@ -101,7 +101,7 @@ class _MainNavigationHubState extends State<MainNavigationHub> {
 
   // Build navigation items
   List<NavigationDestination> _getNavDestinations(String role) {
-    if (role == 'admin') {
+    if (role == 'admin' || role == 'super_admin') {
       return const [
         NavigationDestination(
           icon: Icon(Icons.admin_panel_settings_outlined),

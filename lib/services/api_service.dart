@@ -3108,45 +3108,7 @@ if (!kIsWeb && Platform.isIOS) {
     return _mockLeaves;
   }
 
-  Future<LeaveRequest?> createLeaveRequest(Map<String, dynamic> data) async {
-    if (_useMockFallback) {
-      final newLeave = LeaveRequest(
-        id: 'leave_mock_${DateTime.now().millisecondsSinceEpoch}',
-        userId: _currentUser?.id ?? 'staff_1',
-        employeeName: _currentUser?.name ?? 'Employee',
-        employeeId: _currentUser?.employeeId ?? 'EMP-1003',
-        departmentName: _currentUser?.departmentName,
-        leaveType: data['leave_type'],
-        startDate: data['start_date'],
-        endDate: data['end_date'],
-        status: 'pending',
-        reason: data['reason'] ?? '',
-        createdAt: DateTime.now().toString(),
-      );
-      _mockLeaves.add(newLeave);
-      notifyListeners();
-      return newLeave;
-    }
 
-    try {
-      final res = await http.post(
-        Uri.parse('${AppConstants.apiBaseUrl}/leaves'),
-        headers: _getHeaders(),
-        body: jsonEncode(data),
-      );
-      if (res.statusCode == 201) {
-        final leave = LeaveRequest.fromJson(jsonDecode(res.body));
-        notifyListeners();
-        return leave;
-      } else {
-        final err = jsonDecode(res.body);
-        _errorMessage = err['error'] ?? 'Failed to apply for leave';
-      }
-    } catch (e) {
-      _errorMessage = e.toString();
-    }
-    return null;
-  }
 
   Future<LeaveRequest?> approveRejectLeave(String id, String status,
       {String? adminNotes}) async {
